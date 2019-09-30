@@ -1,0 +1,19 @@
+/**
+ * A convenient wrapper object for malloc/free.
+ * Since in Jack any integer can be used as a pointer and indexed, this is really just for
+ * apperance's sake.
+ * It's much easier to read var Array array; let array = Array.new(2); array[0]
+ * than var int array; let array = Memory.alloc(2); array[0].
+ */
+class Array {
+	/** Constructs a new Array of the given size. */
+	function Array new(int size) {
+		return Memory.alloc(size);
+	}
+
+	/** Disposes this array. */
+	method void dispose() {
+		do Memory.deAlloc(this);
+		return;
+	}
+}

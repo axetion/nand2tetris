@@ -1,0 +1,49 @@
+/**
+ * Module for handling startup/shutdown, errors and other miscellaneous system services.
+ */
+class Sys {
+	/** Starting point -- call init in all of the subsystems, jump to main, then halt once it returns. */
+	function void init() {
+		do Memory.init();
+		do Keyboard.init();
+		do Output.init();
+		do Screen.init();
+
+		do Main.main();
+
+		do Sys.halt();
+		return;
+	}
+
+	/** Halts the program execution. */
+	function void halt() {
+		while (-1) {}
+		return;
+	}
+
+	/** Displays an error code and halts. */
+	function void error(int error) {
+		do Output.printString("Signal ");
+		do Output.printInt(error);
+
+		do Sys.halt();
+		return;
+	}
+
+	/** Waits approximately duration milliseconds and returns. */
+	function void wait(int duration) {
+		var int i;
+
+		while (duration > 0) {
+			let i = 200;
+
+			while (i > 0) {
+				let i = i - 1;
+			}
+
+			let duration = duration - 1;
+		}
+
+		return;
+	}
+}

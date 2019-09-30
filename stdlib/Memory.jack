@@ -1,0 +1,69 @@
+/**
+ * This module provides convenient direct memory access (peek, poke) as well as a crude memory allocator (alloc, deAlloc).
+ */
+class Memory {
+	static Array mem;
+	static Array heap;
+
+	/** Initializes the heap pointer. */
+	function void init() {
+		let mem = 0;
+	
+		let heap = 2048;
+		let heap[0] = 0;
+		let heap[1] = 14300;
+
+		return;
+	}
+
+	/** Finds an available RAM block of the given size and returns a reference to its base address. */
+	function Array alloc(int size) {
+		var Array block;
+		var int remainder, sizeOffset;
+
+		let block = heap;
+		let size = size + 2;  // add 2 for the linked list overhead
+
+		/* Iterate through the list. */
+		while (block > 0) {
+			if (~(block[1] < size)) {  // a fit?
+				/* Make a new block out of just what we need. */
+				let remainder = block[1] - size;
+				let block[1] = remainder;  // this might be 0, but it's not like it's really wasting any memory to have it in the free list
+
+				let sizeOffset = block + remainder + 1;  // store size here
+				let mem[sizeOffset] = size - 2;
+				return sizeOffset + 1;  // start of the actual data
+			}
+
+			let block = block[0];
+		}
+
+		/* Defragmenting is not actually required by the test... if I was concerned about it, I'd really just write a buddy allocator anyways */
+		do Sys.error(6);  // out of memory
+		return 0;
+	}
+
+	/** De-allocates the given object, making it available for future allocations. */
+	function void deAlloc(Array block) {
+		var int next;
+
+		/* Append to the front of the free list. */
+		let next = heap;
+		let heap = block - 2;  // front is now this block
+		let block[-2] = next;  // next is the previous front
+
+		return;
+	}
+
+	/** Returns the RAM value at the given address. */
+	function int peek(int address) {
+		return mem[address];
+	}
+
+	/** Sets the RAM value at the given address to the given value. */
+	function void poke(int address, int value) {
+		let mem[address] = value;
+		return;
+	}
+}

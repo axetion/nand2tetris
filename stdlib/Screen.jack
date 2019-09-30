@@ -1,0 +1,190 @@
+/**
+ * A module for rasterizing some basic shapes -- lines, rectangles, circles -- as well as a helper for drawing a single pixel.
+ */
+class Screen {
+	static Array screen;  // pointer to VRAM
+	static int color;  // current color: 0 for white, -1 for black
+
+	/** Initializes the screen. */
+	function void init() {
+		let screen = 16384;
+		let color = -1;  // start with black?
+		return;
+	}
+
+	/** Sets the current color. */
+	function void setColor(int newColor) {
+		let color = newColor;
+		return;
+	}
+
+	/** Erases the entire screen. */
+	function void clearScreen() {
+		var int i;
+
+		/* 
+		 * Clearing the screen actually needs to be as efficient as possible since most games will do it before drawing each frame,
+		 * as opposed to doing "dirty drawing."
+		 * By using & 8192 rather than < 8192, we eliminate many branches during this loop.
+		 */
+		while (~(i & 8192)) {
+			let screen[i] = 0;
+			let i = i + 1;
+		}
+
+		return;
+	}
+
+	/** Draws a pixel at (x,y) using the current color. */
+	function void drawPixel(int x, int y) {
+		var int quotient, column, address, contents;
+		let column = 1;
+
+		/* Since this is a hot path, I've avoided function calls where possible. This does mean duplicating a bit of Math. */
+
+		/* y *= 32 -> y <<= 5 */
+		let y = y + y;
+		let y = y + y;
+		let y = y + y;
+		let y = y + y;
+		let y = y + y;
+
+		/* 
+		 * x /= 16.
+		 * We can take advantage of the fact that x < 512 to perform much fewer comparisons 
+		 * when doing this than Math.divide would. 
+		 */
+		if (x & 256) {
+			let x = x - 256;
+			let quotient = quotient + 16;
+		}
+
+		if (x & 128) {
+			let x = x - 128;
+			let quotient = quotient + 8;
+		}
+
+		if (x & 64) {
+			let x = x - 64;
+			let quotient = quotient + 4;
+		}
+
+		if (x & 32) {
+			let x = x - 32;
+			let quotient = quotient + 2;
+		}
+
+		if (x & 16) {
+			let x = x - 16;
+			let quotient = quotient + 1;
+		}
+
+		/* Compute bitmask for the column (2^(x mod 16)). */
+		while (x > 0) {
+			let x = x - 1;
+			let column = column + column;  // column <<= 1
+		}
+
+		let address = y + quotient;  // address = (x / 16) + y * 32
+		let contents = screen[address];
+
+		if (color) {  // color == -1, turn the bit on
+			let screen[address] = contents | column;
+		} else {      // color == 0, turn the bit off
+			let screen[address] = contents & ~column;
+		}
+
+		return;
+	}
+
+	/** Draws a line from (x1, y1) to (x2, y2) using the current color. */
+	function void drawLine(int x1, int y1, int x2, int y2) {
+		var int dx, dy, err, signx, signy;		
+
+		let dx = x2 - x1;
+		let dy = y2 - y1;
+
+		/* signx = sgn(x), signy = sgn(y) (-1 if negative, 0 if 0, 1 if positive.) */
+		if (dx < 0) {
+			let signx = -1;
+			let dx = -dx;
+		} else {
+			if (dx > 0) {
+				let signx = 1;
+			}
+		}
+
+		if (dy < 0) {
+			let signy = -1;
+			let dy = -dy;
+		} else {
+			if (dy > 0) {
+				let signy = 1;
+			}
+		}
+
+		while (~((x1 = x2) & (y1 = y2))) {
+			do Screen.drawPixel(x1, y1);
+
+			if (err < 0) {  // overshoot
+				let x1 = x1 + signx;
+				let err = err + dy;
+			} else {        // undershoot
+				let y1 = y1 + signy;
+				let err = err - dx;
+			}
+		}
+
+		return;
+	}
+
+	/** Draws a filled rectangle whose top left corner is (x1, y1) and bottom right corner is (x2, y2), using the current color. */
+	function void drawRectangle(int x1, int y1, int x2, int y2) {
+		while (y1 < y2) {
+			do Screen.drawLine(x1, y1, x2, y1);
+			let y1 = y1 + 1;
+		}
+
+		return;
+	}
+
+	/** Draws a filled circle of radius centered at (x, y), using the current color. */
+	function void drawCircle(int x0, int y0, int radius) {
+		var int x, y, dx, dy, err, diameter;
+
+		/*
+		 * Midpoint circle algorithm.
+		 * This essentially works by iteratively drawing octagons, connecting each vertex with drawLine to fill them.
+		 */
+		let diameter = radius + radius;
+
+		let x = radius - 1;
+		let y = 0;
+		
+		let dx = 1;
+		let dy = 1;
+		let err = 1 - diameter;
+
+		while (y < x) {
+			/* First octant. */
+			do Screen.drawLine(x0 - x, y0 + y, x0 + x, y0 + y);
+			do Screen.drawLine(x0 - x, y0 - y, x0 + x, y0 - y);
+
+			/* Second octant. */
+			do Screen.drawLine(x0 - y, y0 + x, x0 + y, y0 + x);
+			do Screen.drawLine(x0 - y, y0 - x, x0 + y, y0 - x);
+
+			if (err > 0) {
+				let x = x - 1;
+				let dx = dx + 2;
+				let err = err + dx - diameter;
+			} else {
+				let y = y + 1;
+				let err = err + dy;
+				let dy = dy + 2;
+			}
+		}
+
+		return;
+	}
+}

@@ -1,0 +1,199 @@
+/**
+ * Container for an fixed-capacity array of characters as well as its length.
+ */
+class String {
+	field Array data;
+	field int length;
+
+	/** Constructs a new empty string with a capacity of len and initial length of 0. */
+	constructor String new(int len) {
+		let data = Memory.alloc(len + 1);
+		let length = 0;
+
+		return this;
+	}
+
+	/** Disposes this string. */
+	method void dispose() {
+		do Memory.deAlloc(data);
+		do Memory.deAlloc(this);
+
+		return;
+	}
+
+	/** Getter for the current length of this string. */
+	method int length() {
+		return length;
+	}
+
+	/** Returns the character at the specified index. No bounds checking. */
+	method char charAt(int i) {
+		return data[i];
+	}
+
+	/** Sets the character at the specified index. No bounds checking. */
+	method void setCharAt(int i, char c) {
+		let data[i] = c;
+		return;
+	}
+
+	/** Appends c to end of this string and returns this string. */
+	method String appendChar(char c) {
+		let data[length] = c;
+		let length = length + 1;
+
+		return this;
+	}
+
+	/** Removes the character at the end of this string. (length--) */
+	method void eraseLastChar() {
+		let length = length - 1;
+		return;
+	}
+
+	/** Returns the integer represented by this base-10 string. */
+	method int intValue() {
+		var int value, digit, i;
+		var boolean neg;
+
+		if (data[0] = 45) {  // 45 == '-'
+			let i = 1;
+			let neg = true;
+		}
+
+		while (i < length) {
+			let digit = data[i] - 48;
+
+			/* v = v * 10 + d */
+			let value = value + value;                                  // v * 2
+			let value = value + value + value + value + value + digit;  // (v * 2) * 5 + d
+
+			let i = i + 1;
+		}
+
+		if (neg) {
+			return -value;
+		}
+
+		return value;
+	}
+
+	/** Populates this string with the base-10 representation of the specified integer. */
+	method void setInt(int i) {
+		var int q, a, b, temp;
+
+		/* Check sign bit: */
+		if (i & ~32767) {  // negative
+			let i = -i;
+			let data[0] = 45;  // prepend negative sign
+			let length = 1;
+			let a = 1;
+		} else {  // positive
+			let length = 0;
+			let a = 0;
+		}
+
+		while (i > 0) {
+			/* 
+			 * Calculate i / 10. i gets the remainder, q gets the quotient. 
+			 * Once again, I'm doing this rather than Math.divide because knowing the divisor lets us do
+			 * fewer comparisons and we can get the remainder.
+			 */
+			let q = 0;
+
+			if (~(i < 20480)) {
+				let i = i - 20480;
+				let q = q + 2048;
+			}
+
+			if (~(i < 10240)) {
+				let i = i - 10240;
+				let q = q + 1024;
+			}
+
+			if (~(i < 5120)) {
+				let i = i - 5120;
+				let q = q + 512;
+			}
+
+			if (~(i < 2560)) {
+				let i = i - 2560;
+				let q = q + 256;
+			}
+
+			if (~(i < 1280)) {
+				let i = i - 1280;
+				let q = q + 128;
+			}
+
+			if (~(i < 640)) {
+				let i = i - 640;
+				let q = q + 64;
+			}
+
+			if (~(i < 320)) {
+				let i = i - 320;
+				let q = q + 32;
+			}
+
+			if (~(i < 160)) {
+				let i = i - 160;
+				let q = q + 16;
+			}
+
+			if (~(i < 80)) {
+				let i = i - 80;
+				let q = q + 8;
+			}
+
+			if (~(i < 40)) {
+				let i = i - 40;
+				let q = q + 4;
+			}
+
+			if (~(i < 20)) {
+				let i = i - 20;
+				let q = q + 2;
+			}
+
+			if (~(i < 10)) {
+				let i = i - 10;
+				let q = q + 1;
+			}
+
+			/* i is the digit, q is the value for the next iteration. */
+			let data[length] = i + 48;  // i + 48 maps to the ASCII digits
+			let length = length + 1;
+			let i = q;
+		}
+
+		/* Reverse the string in-place by going from either end and swapping each character until they pass each other. */
+		let b = length - 1;
+
+		while (~(a > b)) {
+			let temp = data[a];
+			let data[a] = data[b];
+			let data[b] = temp;
+
+			let a = a + 1;
+			let b = b - 1;
+		}
+
+		return;
+	}
+
+	/** Returns the character code for a backspace. */
+	function char backSpace() {
+		return 129;
+	}
+
+	/** Returns the character code for a linefeed. */
+	function char newLine() {
+		return 128;
+	}
+
+	/** Returns the character code for a double quote (""). */
+	function char doubleQuote() {
+		return 34;
+	}
+}

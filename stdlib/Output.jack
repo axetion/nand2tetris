@@ -1,0 +1,506 @@
+/**
+ * Module for managing TTY output.
+ */
+class Output {
+	/* Pointers to the font and VRAM. */
+	static Array font, screen;
+	static int cursorX, cursorY, subaddress;
+
+	/** Initializes the TTY. */
+	function void init() {
+		let screen = 16384;
+		let cursorX = 0;  // column in screenspace.
+		let cursorY = 0;  // "row" in screenspace.
+		                  // This is actually the base offset to row y, column 0 so that we can simply add x and y to get the address to write to.
+		let subaddress = 0;  // Subaddress. Since our characters are 8 bits wide and each register is 16-bits wide, we use this to indicate
+		                     // whether to write to the lower 8 bits (0) or the upper 8 bits (-1).
+
+		let font = Memory.alloc(127);
+
+		/* Initialize font. */
+		do Output.glyph(0, 63, 63, 63, 63, 63, 63, 63, 63, 63, 0, 0);  // unprintable
+
+		do Output.glyph(32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);          // space
+		do Output.glyph(33, 12, 30, 30, 30, 12, 12, 0, 12, 12, 0, 0);  // !
+		do Output.glyph(34, 54, 54, 20, 0, 0, 0, 0, 0, 0, 0, 0);       // "
+		do Output.glyph(35, 0, 18, 18, 63, 18, 18, 63, 18, 18, 0, 0);  // #
+		do Output.glyph(36, 12, 30, 51, 3, 30, 48, 51, 30, 12, 12, 0); // $
+		do Output.glyph(37, 0, 0, 35, 51, 24, 12, 6, 51, 49, 0, 0);    // %
+		do Output.glyph(38, 12, 30, 30, 12, 54, 27, 27, 27, 54, 0, 0); // &
+		do Output.glyph(39, 12, 12, 6, 0, 0, 0, 0, 0, 0, 0, 0);        // '
+		do Output.glyph(40, 24, 12, 6, 6, 6, 6, 6, 12, 24, 0, 0);      // (
+		do Output.glyph(41, 6, 12, 24, 24, 24, 24, 24, 12, 6, 0, 0);   // )
+		do Output.glyph(42, 0, 0, 0, 51, 30, 63, 30, 51, 0, 0, 0);     // *
+		do Output.glyph(43, 0, 0, 0, 12, 12, 63, 12, 12, 0, 0, 0);     // +
+		do Output.glyph(44, 0, 0, 0, 0, 0, 0, 0, 12, 12, 6, 0);        // , 
+		do Output.glyph(45, 0, 0, 0, 0, 0, 63, 0, 0, 0, 0, 0);         // -
+		do Output.glyph(46, 0, 0, 0, 0, 0, 0, 0, 12, 12, 0, 0);        // .
+		do Output.glyph(47, 0, 0, 32, 48, 24, 12, 6, 3, 1, 0, 0);      // /
+
+		do Output.glyph(48, 12, 30, 51, 51, 51, 51, 51, 30, 12, 0, 0); // 0
+		do Output.glyph(49, 12, 14, 15, 12, 12, 12, 12, 12, 63, 0, 0); // 1
+		do Output.glyph(50, 30, 51, 48, 24, 12, 6, 3, 51, 63, 0, 0);   // 2
+		do Output.glyph(51, 30, 51, 48, 48, 28, 48, 48, 51, 30, 0, 0); // 3
+		do Output.glyph(52, 16, 24, 28, 26, 25, 63, 24, 24, 60, 0, 0); // 4
+		do Output.glyph(53, 63, 3, 3, 31, 48, 48, 48, 51, 30, 0, 0);   // 5
+		do Output.glyph(54, 28, 6, 3, 3, 31, 51, 51, 51, 30, 0, 0);    // 6
+		do Output.glyph(55, 63, 49, 48, 48, 24, 12, 12, 12, 12, 0, 0); // 7
+		do Output.glyph(56, 30, 51, 51, 51, 30, 51, 51, 51, 30, 0, 0); // 8
+		do Output.glyph(57, 30, 51, 51, 51, 62, 48, 48, 24, 14, 0, 0); // 9
+
+		do Output.glyph(58, 0, 0, 12, 12, 0, 0, 12, 12, 0, 0, 0);      // :
+		do Output.glyph(59, 0, 0, 12, 12, 0, 0, 12, 12, 6, 0, 0);      // ;
+		do Output.glyph(60, 0, 0, 24, 12, 6, 3, 6, 12, 24, 0, 0);      // <
+		do Output.glyph(61, 0, 0, 0, 63, 0, 0, 63, 0, 0, 0, 0);        // =
+		do Output.glyph(62, 0, 0, 3, 6, 12, 24, 12, 6, 3, 0, 0);       // >
+		do Output.glyph(64, 30, 51, 51, 59, 59, 59, 27, 3, 30, 0, 0);  // @
+		do Output.glyph(63, 30, 51, 51, 24, 12, 12, 0, 12, 12, 0, 0);  // ?
+
+		do Output.glyph(65, 12, 30, 51, 51, 63, 51, 51, 51, 51, 0, 0); // A
+		do Output.glyph(66, 31, 51, 51, 51, 31, 51, 51, 51, 31, 0, 0); // B
+		do Output.glyph(67, 28, 54, 35, 3, 3, 3, 35, 54, 28, 0, 0);    // C
+		do Output.glyph(68, 15, 27, 51, 51, 51, 51, 51, 27, 15, 0, 0); // D
+		do Output.glyph(69, 63, 51, 35, 11, 15, 11, 35, 51, 63, 0, 0); // E
+		do Output.glyph(70, 63, 51, 35, 11, 15, 11, 3, 3, 3, 0, 0);    // F
+		do Output.glyph(71, 28, 54, 35, 3, 59, 51, 51, 54, 44, 0, 0);  // G
+		do Output.glyph(72, 51, 51, 51, 51, 63, 51, 51, 51, 51, 0, 0); // H
+		do Output.glyph(73, 30, 12, 12, 12, 12, 12, 12, 12, 30, 0, 0); // I
+		do Output.glyph(74, 60, 24, 24, 24, 24, 24, 27, 27, 14, 0, 0); // J
+		do Output.glyph(75, 51, 51, 51, 27, 15, 27, 51, 51, 51, 0, 0); // K
+		do Output.glyph(76, 3, 3, 3, 3, 3, 3, 35, 51, 63, 0, 0);       // L
+		do Output.glyph(77, 33, 51, 63, 63, 51, 51, 51, 51, 51, 0, 0); // M
+		do Output.glyph(78, 51, 51, 55, 55, 63, 59, 59, 51, 51, 0, 0); // N
+		do Output.glyph(79, 30, 51, 51, 51, 51, 51, 51, 51, 30, 0, 0); // O
+		do Output.glyph(80, 31, 51, 51, 51, 31, 3, 3, 3, 3, 0, 0);     // P
+		do Output.glyph(81, 30, 51, 51, 51, 51, 51, 63, 59, 30, 48, 0);// Q
+		do Output.glyph(82, 31, 51, 51, 51, 31, 27, 51, 51, 51, 0, 0); // R
+		do Output.glyph(83, 30, 51, 51, 6, 28, 48, 51, 51, 30, 0, 0);  // S
+		do Output.glyph(84, 63, 63, 45, 12, 12, 12, 12, 12, 30, 0, 0); // T
+		do Output.glyph(85, 51, 51, 51, 51, 51, 51, 51, 51, 30, 0, 0); // U
+		do Output.glyph(86, 51, 51, 51, 51, 51, 30, 30, 12, 12, 0, 0); // V
+		do Output.glyph(87, 51, 51, 51, 51, 51, 63, 63, 63, 18, 0, 0); // W
+		do Output.glyph(88, 51, 51, 30, 30, 12, 30, 30, 51, 51, 0, 0); // X
+		do Output.glyph(89, 51, 51, 51, 51, 30, 12, 12, 12, 30, 0, 0); // Y
+		do Output.glyph(90, 63, 51, 49, 24, 12, 6, 35, 51, 63, 0, 0);  // Z
+
+		do Output.glyph(91, 30, 6, 6, 6, 6, 6, 6, 6, 30, 0, 0);          // [
+		do Output.glyph(92, 0, 0, 1, 3, 6, 12, 24, 48, 32, 0, 0);        // \
+		do Output.glyph(93, 30, 24, 24, 24, 24, 24, 24, 24, 30, 0, 0);   // ]
+		do Output.glyph(94, 8, 28, 54, 0, 0, 0, 0, 0, 0, 0, 0);          // ^
+		do Output.glyph(95, 0, 0, 0, 0, 0, 0, 0, 0, 0, 63, 0);           // _
+		do Output.glyph(96, 6, 12, 24, 0, 0, 0, 0, 0, 0, 0, 0);          // `
+
+		do Output.glyph(97, 0, 0, 0, 14, 24, 30, 27, 27, 54, 0, 0);      // a
+		do Output.glyph(98, 3, 3, 3, 15, 27, 51, 51, 51, 30, 0, 0);      // b
+		do Output.glyph(99, 0, 0, 0, 30, 51, 3, 3, 51, 30, 0, 0);        // c
+		do Output.glyph(100, 48, 48, 48, 60, 54, 51, 51, 51, 30, 0, 0);  // d
+		do Output.glyph(101, 0, 0, 0, 30, 51, 63, 3, 51, 30, 0, 0);      // e
+		do Output.glyph(102, 28, 54, 38, 6, 15, 6, 6, 6, 15, 0, 0);      // f
+		do Output.glyph(103, 0, 0, 30, 51, 51, 51, 62, 48, 51, 30, 0);   // g
+		do Output.glyph(104, 3, 3, 3, 27, 55, 51, 51, 51, 51, 0, 0);     // h
+		do Output.glyph(105, 12, 12, 0, 14, 12, 12, 12, 12, 30, 0, 0);   // i
+		do Output.glyph(106, 48, 48, 0, 56, 48, 48, 48, 48, 51, 30, 0);  // j
+		do Output.glyph(107, 3, 3, 3, 51, 27, 15, 15, 27, 51, 0, 0);     // k
+		do Output.glyph(108, 14, 12, 12, 12, 12, 12, 12, 12, 30, 0, 0);  // l
+		do Output.glyph(109, 0, 0, 0, 29, 63, 43, 43, 43, 43, 0, 0);     // m
+		do Output.glyph(110, 0, 0, 0, 29, 51, 51, 51, 51, 51, 0, 0);     // n
+		do Output.glyph(111, 0, 0, 0, 30, 51, 51, 51, 51, 30, 0, 0);     // o
+		do Output.glyph(112, 0, 0, 0, 30, 51, 51, 51, 31, 3, 3, 0);      // p
+		do Output.glyph(113, 0, 0, 0, 30, 51, 51, 51, 62, 48, 48, 0);    // q
+		do Output.glyph(114, 0, 0, 0, 29, 55, 51, 3, 3, 7, 0, 0);        // r
+		do Output.glyph(115, 0, 0, 0, 30, 51, 6, 24, 51, 30, 0, 0);      // s
+		do Output.glyph(116, 4, 6, 6, 15, 6, 6, 6, 54, 28, 0, 0);        // t
+		do Output.glyph(117, 0, 0, 0, 27, 27, 27, 27, 27, 54, 0, 0);     // u
+		do Output.glyph(118, 0, 0, 0, 51, 51, 51, 51, 30, 12, 0, 0);     // v
+		do Output.glyph(119, 0, 0, 0, 51, 51, 51, 63, 63, 18, 0, 0);     // w
+		do Output.glyph(120, 0, 0, 0, 51, 30, 12, 12, 30, 51, 0, 0);     // x
+		do Output.glyph(121, 0, 0, 0, 51, 51, 51, 62, 48, 24, 15, 0);    // y
+		do Output.glyph(122, 0, 0, 0, 63, 27, 12, 6, 51, 63, 0, 0);      // z
+
+		do Output.glyph(123, 56, 12, 12, 12, 7, 12, 12, 12, 56, 0, 0);   // {
+		do Output.glyph(124, 12, 12, 12, 12, 12, 12, 12, 12, 12, 0, 0);  // |
+		do Output.glyph(125, 7, 12, 12, 12, 56, 12, 12, 12, 7, 0, 0);    // }
+		do Output.glyph(126, 38, 45, 25, 0, 0, 0, 0, 0, 0, 0, 0);        // ~
+
+		return;
+	}
+
+	/** Creates and stores the given character described by these eleven 8-bit rows. */
+	function void glyph(char c, int r1, int r2, int r3, int r4, int r5, int r6, int r7, int r8, int r9, int r10, int r11) {
+		var Array glyph;
+		let glyph = Memory.alloc(22);
+
+		/* 
+		 * We store two versions of each character -- the normal one, and one shifted over to the right. 
+		 * We sacrifice the increase in memory consumption in exchange for being able to output the characters with simple ANDs later.
+		 */
+		let glyph[0] = r1;
+		let glyph[1] = r2;
+		let glyph[2] = r3;
+		let glyph[3] = r4;
+
+		let glyph[4] = r5;
+		let glyph[5] = r6;
+		let glyph[6] = r7;
+		let glyph[7] = r8;
+
+		let glyph[8] = r9;
+		let glyph[9] = r10;
+		let glyph[10] = r11;
+
+		/* 
+		 * For each row we do y * 255 = y << 8 to shift it over. 
+		 * We also set the lower 8 bits all to 1 by ORing 255 in.
+		 * This is to preserve the previous character when we bitwise AND this mask in printChar.
+		 */
+		let r1 = r1 + r1;
+		let r1 = r1 + r1;
+		let r1 = r1 + r1;
+		let r1 = r1 + r1;
+		let r1 = r1 + r1;
+		let r1 = r1 + r1;
+		let r1 = r1 + r1;
+		let glyph[11] = r1 + r1 | 255;
+
+		let r2 = r2 + r2;
+		let r2 = r2 + r2;
+		let r2 = r2 + r2;
+		let r2 = r2 + r2;
+		let r2 = r2 + r2;
+		let r2 = r2 + r2;
+		let r2 = r2 + r2;
+		let glyph[12] = r2 + r2 | 255;
+
+		let r3 = r3 + r3;
+		let r3 = r3 + r3;
+		let r3 = r3 + r3;
+		let r3 = r3 + r3;
+		let r3 = r3 + r3;
+		let r3 = r3 + r3;
+		let r3 = r3 + r3;
+		let glyph[13] = r3 + r3 | 255;
+
+		let r4 = r4 + r4;
+		let r4 = r4 + r4;
+		let r4 = r4 + r4;
+		let r4 = r4 + r4;
+		let r4 = r4 + r4;
+		let r4 = r4 + r4;
+		let r4 = r4 + r4;
+		let glyph[14] = r4 + r4 | 255;
+
+		let r5 = r5 + r5;
+		let r5 = r5 + r5;
+		let r5 = r5 + r5;
+		let r5 = r5 + r5;
+		let r5 = r5 + r5;
+		let r5 = r5 + r5;
+		let r5 = r5 + r5;
+		let glyph[15] = r5 + r5 | 255;
+
+		let r6 = r6 + r6;
+		let r6 = r6 + r6;
+		let r6 = r6 + r6;
+		let r6 = r6 + r6;
+		let r6 = r6 + r6;
+		let r6 = r6 + r6;
+		let r6 = r6 + r6;
+		let glyph[16] = r6 + r6 | 255;
+
+		let r7 = r7 + r7;
+		let r7 = r7 + r7;
+		let r7 = r7 + r7;
+		let r7 = r7 + r7;
+		let r7 = r7 + r7;
+		let r7 = r7 + r7;
+		let r7 = r7 + r7;
+		let glyph[17] = r7 + r7 | 255;
+
+		let r8 = r8 + r8;
+		let r8 = r8 + r8;
+		let r8 = r8 + r8;
+		let r8 = r8 + r8;
+		let r8 = r8 + r8;
+		let r8 = r8 + r8;
+		let r8 = r8 + r8;
+		let glyph[18] = r8 + r8 | 255;
+
+		let r9 = r9 + r9;
+		let r9 = r9 + r9;
+		let r9 = r9 + r9;
+		let r9 = r9 + r9;
+		let r9 = r9 + r9;
+		let r9 = r9 + r9;
+		let r9 = r9 + r9;
+		let glyph[19] = r9 + r9 | 255;
+
+		let r10 = r10 + r10;
+		let r10 = r10 + r10;
+		let r10 = r10 + r10;
+		let r10 = r10 + r10;
+		let r10 = r10 + r10;
+		let r10 = r10 + r10;
+		let r10 = r10 + r10;
+		let glyph[20] = r10 + r10 | 255;
+
+		let r11 = r11 + r11;
+		let r11 = r11 + r11;
+		let r11 = r11 + r11;
+		let r11 = r11 + r11;
+		let r11 = r11 + r11;
+		let r11 = r11 + r11;
+		let r11 = r11 + r11;
+		let glyph[21] = r11 + r11 | 255;
+
+		let font[c] = glyph;
+		return;
+	}
+
+	/** Moves the cursor to the x-th column of the y-th row, and erases the character displayed there. */
+	function void moveCursor(int y, int x) {
+		var int y2, y8;
+
+		do Output.eraseCursor();
+
+		/* cursorX = x / 2, subaddress = -(x % 2). We can take advantage of x being less than 64 here. */
+		if (x & 32) {
+			let x = x - 32;
+			let cursorX = cursorX + 16;
+		}
+
+		if (x & 16) {
+			let x = x - 16;
+			let cursorX = cursorX + 8;
+		}
+
+		if (x & 8) {
+			let x = x - 8;
+			let cursorX = cursorX + 4;
+		}
+
+		if (x & 4) {
+			let x = x - 4;
+			let cursorX = cursorX + 2;
+		}
+
+		if (x & 2) {
+			let x = x - 2;
+			let cursorX = cursorX + 1;
+		}
+
+		let subaddress = -x;  // store remainder as subaddress
+
+		/* cursorY = y * 352. Decompose into (y * 11) * 32. */ 
+		let y2 = y + y;  // 2*y
+		let y8 = y2 + y2;  // 4*y
+		let y8 = y8 + y8;  // 8*y
+
+		let cursorY = y8 + y2 + y;  // cursorY = (1 + 2 + 8) * y = 11 * y.
+
+		// cursorY *= 32 -> cursorY <<= 5.
+		let cursorY = cursorY + cursorY;
+		let cursorY = cursorY + cursorY;
+		let cursorY = cursorY + cursorY;
+		let cursorY = cursorY + cursorY;
+		let cursorY = cursorY + cursorY;
+
+		do Output.drawCursor();
+		return;
+	}
+
+	/** Displays the given character at the cursor location, and advances the cursor one column forward. */
+	function void printChar(char c) {
+		var Array glyph;
+		var int address;
+
+		/* 
+		 * Handle "printing" a backspace. It is not specified anywhere that you have to do this, however the built-in printChar does this.
+		 * (Much to my surprise! It caused a huge bug in my Keyboard.)
+		 */
+		if (c = 129) {  // 129 = backspace
+			do Output.backSpace();
+			return;
+		}
+
+		let glyph = font[c];
+		let address = cursorX + cursorY;
+
+		/*
+		 * If subaddress is -1, then AND the current contents at that screen position with the glyph. 
+		 * Since the cursor is guaranteed to already be there, the upper 8 bits is all 1s meaning that
+		 * the 0 bits in the glyph will clear the corresponding screen bits.
+		 * (Essentially forming the character by turning off bits in the cursor.)
+		 */
+		if (subaddress) {
+			let screen[address] = screen[address] & glyph[11];
+			let screen[address + 32] = screen[address + 32] & glyph[12];
+			let screen[address + 64] = screen[address + 64] & glyph[13];
+			let screen[address + 96] = screen[address + 96] & glyph[14];
+			let screen[address + 128] = screen[address + 128] & glyph[15];
+			let screen[address + 160] = screen[address + 160] & glyph[16];
+			let screen[address + 192] = screen[address + 192] & glyph[17];
+			let screen[address + 224] = screen[address + 224] & glyph[18];
+			let screen[address + 256] = screen[address + 256] & glyph[19];
+			let screen[address + 288] = screen[address + 288] & glyph[20];
+			let screen[address + 320] = screen[address + 320] & glyph[21];
+		} else {  // otherwise set it directly
+			let screen[address] = glyph[0];
+			let screen[address + 32] = glyph[1];
+			let screen[address + 64] = glyph[2];
+			let screen[address + 96] = glyph[3];
+			let screen[address + 128] = glyph[4];
+			let screen[address + 160] = glyph[5];
+			let screen[address + 192] = glyph[6];
+			let screen[address + 224] = glyph[7];
+			let screen[address + 256] = glyph[8];
+			let screen[address + 288] = glyph[9];
+			let screen[address + 320] = glyph[10];
+		}
+
+		/* Update cursor. */
+		let cursorX = cursorX - subaddress;  // cursorX - (-1) = cursorX + 1
+		let subaddress = ~subaddress;
+
+		if (cursorX & 32) {  // reached the edge of the screen, wrap around to the next line
+			let cursorX = 0;
+			let cursorY = cursorY + 352;
+
+			if (cursorY = 8096) {  // reached the very end, wrap around to top
+				let cursorY = 0;
+			}
+		}
+		
+		do Output.drawCursor();
+		return;
+	}
+
+	/** Displays the given string starting at the cursor location, and advances the cursor appropriately. */
+	function void printString(String s) {
+		var int i, len;
+
+		let len = s.length();
+
+		while (i < len) {
+			do Output.printChar(s.charAt(i));
+			let i = i + 1;
+		}
+
+		return;
+	}
+
+	/** Displays the given integer starting at the cursor location, and advances the cursor appropriately. */
+	function void printInt(int i) {
+		/* This should be redone so that it does the division itself and outputs each digit one at a time, rather than needing a buffer like this. */
+		var String value;
+		let value = String.new(6);
+
+		do value.setInt(i);
+		do Output.printString(value);
+		do value.dispose();
+
+		return;
+	}
+
+	/** Advances the cursor to the beginning of the next line. */
+	function void println() {
+		do Output.eraseCursor();
+
+		let cursorX = 0;
+		let subaddress = 0;
+		let cursorY = cursorY + 352;
+
+		if (cursorY = 8096) {  // reached the very end, wrap around to top
+			let cursorY = 0;
+		}
+
+		do Output.drawCursor();
+		return;
+	}
+
+	/** Moves the cursor one column back. */
+	function void backSpace() {
+		do Output.eraseCursor();
+
+		if ((cursorX = 0) & ~(cursorY = 0)) {  // at the edge of the screen, wrap back around
+			let cursorX = 31;
+			let subaddress = -1;
+			let cursorY = cursorY - 352;
+		} else {
+			let subaddress = ~subaddress;
+			let cursorX = cursorX + subaddress;
+		}
+
+		do Output.drawCursor();
+		return;
+	}
+
+	/** Erases the cursor at the current position. */
+	function void eraseCursor() {
+		var int address;
+		let address = cursorX + cursorY;
+
+		/* If subaddress is 1, ANDing with 255 will clear the upper 8 bits. */
+		if (subaddress) {
+			let screen[address] = screen[address] & 255;
+			let screen[address + 32] = screen[address + 32] & 255;
+			let screen[address + 64] = screen[address + 64] & 255;
+			let screen[address + 96] = screen[address + 96] & 255;
+			let screen[address + 128] = screen[address + 128] & 255;
+			let screen[address + 160] = screen[address + 160] & 255;
+			let screen[address + 192] = screen[address + 192] & 255;
+			let screen[address + 224] = screen[address + 224] & 255;
+			let screen[address + 256] = screen[address + 256] & 255;
+			let screen[address + 288] = screen[address + 288] & 255;
+			let screen[address + 320] = screen[address + 320] & 255;
+		} else {  // otherwise just set it to 0
+			let screen[address] = 0;
+			let screen[address + 32] = 0;
+			let screen[address + 64] = 0;
+			let screen[address + 96] = 0;
+			let screen[address + 128] = 0;
+			let screen[address + 160] = 0;
+			let screen[address + 192] = 0;
+			let screen[address + 224] = 0;
+			let screen[address + 256] = 0;
+			let screen[address + 288] = 0;
+			let screen[address + 320] = 0;
+		}
+
+		return;
+	}
+
+	/** Draws the cursor at the current position. */
+	function void drawCursor() {
+		var int address;
+		let address = cursorX + cursorY;
+
+		/* If subaddress is 1, OR with ~255 (upper 8 bits are 1, lower 8 bits are 0.) */
+		if (subaddress) {
+			let screen[address] = screen[address] | ~255;
+			let screen[address + 32] = screen[address + 32] | ~255;
+			let screen[address + 64] = screen[address + 64] | ~255;
+			let screen[address + 96] = screen[address + 96] | ~255;
+			let screen[address + 128] = screen[address + 128] | ~255;
+			let screen[address + 160] = screen[address + 160] | ~255;
+			let screen[address + 192] = screen[address + 192] | ~255;
+			let screen[address + 224] = screen[address + 224] | ~255;
+			let screen[address + 256] = screen[address + 256] | ~255;
+			let screen[address + 288] = screen[address + 288] | ~255;
+			let screen[address + 320] = screen[address + 320] | ~255;
+		} else {  // otherwise set to 255 (upper 8 bits are 0, lower 8 bits are 1.)
+			let screen[address] = 255;
+			let screen[address + 32] = 255;
+			let screen[address + 64] = 255;
+			let screen[address + 96] = 255;
+			let screen[address + 128] = 255;
+			let screen[address + 160] = 255;
+			let screen[address + 192] = 255;
+			let screen[address + 224] = 255;
+			let screen[address + 256] = 255;
+			let screen[address + 288] = 255;
+			let screen[address + 320] = 255;
+		}
+
+		return;
+	}
+}

@@ -1,0 +1,115 @@
+CHIP CPU {
+    IN inM[16], instruction[16], reset;
+    OUT outM[16], writeM, addressM[15], pc[15];
+
+
+    PARTS:
+
+    Mux16 (
+        a = false,
+        b = instruction,
+        sel = instruction[15],
+
+        out[0] = jumpGreaterThan,
+        out[1] = jumpEqual,
+        out[2] = jumpLessThan,
+
+        out[3] = writeM,
+        out[4] = writeD,
+        out[5] = writeA,
+
+        out[6] = no,
+        out[7] = f,
+        out[8] = ny,
+        out[9] = zy,
+        out[10] = nx,
+        out[11] = zx,
+
+        out[12] = amSwitch
+    );
+
+    Mux16 (
+        a = aOutput,
+        b = inM,
+        sel = amSwitch,
+
+        out = am
+    );
+
+    ALU (
+        x = dOutput,
+        y = am,
+
+        zx = zx,
+        zy = zy,
+        nx = nx,
+        ny = ny,
+        f = f,
+        no = no,
+
+        out = comp,
+        out = outM,
+        ng = lessThan,
+        zr = equal
+    );
+
+    Or (a = lessThan, b = equal, out = notGreaterThan);
+    Not (in = notGreaterThan, out = greaterThan);
+
+    And16 (
+        a[0] = greaterThan,
+        b[0] = jumpGreaterThan, 
+        
+        a[1] = equal,
+        b[1] = jumpEqual,
+        
+        a[2] = lessThan,
+        b[2] = jumpLessThan,
+
+        a[3..15] = false,
+        b[3..15] = false,
+
+        out[0..7] = conditions
+    );
+
+    Or8Way (
+        in = conditions,
+        out = doJump
+    );
+
+    Mux4Way16 (
+        a = instruction,
+        b = instruction,
+        c = aOutput,
+        d = comp,
+
+        sel[0] = writeA,
+        sel[1] = instruction[15],
+
+        out = nextAddress
+    );
+
+    PC (
+        in = nextAddress,
+        inc = true,
+        load = doJump,
+        reset = reset,
+
+        out[0..14] = pc
+    );
+
+    ARegister (
+        in = nextAddress,
+        load = true,
+
+        out = aOutput,
+        out[0..14] = addressM
+    );
+ 
+    DRegister (
+        in = comp,
+        load = writeD,
+
+        out = dOutput
+    );
+}

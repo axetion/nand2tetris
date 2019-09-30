@@ -1,0 +1,105 @@
+/**
+ * A module for handling both raw input from the keyboard and cooking it (reading full lines).
+ */
+class Keyboard {
+	static Array keyboard;  // pointer to KBD
+
+	/** Initializes the keyboard. */
+	function void init() {
+		let keyboard = 24576;  // 24576 == 0x6000 == keyboard location
+		return;
+	}
+
+	/**
+	 * Returns the character of the currently pressed key on the keyboard;
+	 * if no key is currently pressed, returns 0.
+	 *
+	 * Recognizes all ASCII characters, as well as the following keys:
+	 * new line = 128 = String.newline()
+	 * backspace = 129 = String.backspace()
+	 * left arrow = 130
+	 * up arrow = 131
+	 * right arrow = 132
+	 * down arrow = 133
+	 * home = 134
+	 * End = 135
+	 * page up = 136
+	 * page down = 137
+	 * insert = 138
+	 * delete = 139
+	 * ESC = 140
+	 * F1 - F12 = 141 - 152
+	 */
+	function char keyPressed() {
+		return keyboard[0];
+	}
+
+	/**								
+	 * Blocks until a key is pressed on the keyboard and released,
+	 * then echoes the key to the screen, and returns the character.
+	 */
+	function char readChar() {
+		var char key;
+		let key = 0;
+
+		while (~key) { let key = keyboard[0]; }  // loop until a key is pressed
+		while (keyboard[0] > 0) {}               // loop until released (KBD is 0)
+
+		do Output.printChar(key);  // echo to screen
+		return key;
+	}
+
+	/**	
+	 * Displays the message on the screen, reads from the keyboard the entered
+	 * text until a newline character is detected, echoes the text to the screen,
+	 * and returns its value. Also handles user backspaces.
+	 */
+	function String readLine(String prompt) {
+		var char c;
+		var String buffer;
+
+		/* This should be redone so that the caller passes in a buffer rather than us allocating one. */
+		let buffer = String.new(80);
+
+		do Output.printString(prompt);
+
+		while (-1) {  // loop forever
+			let c = Keyboard.readChar();  // get a char
+
+			if (c = 128) {  // 128 == newline, break
+				do Output.println();
+				return buffer;
+			} else {
+				if (c = 129) {  // 8 == backspace
+					do buffer.eraseLastChar();
+				} else {  // normal character
+					do buffer.appendChar(c);
+				}
+			}
+		}
+
+		return buffer;
+	}
+
+
+	/**
+	 * Displays the message on the screen, reads from the keyboard the entered
+	 * text until a newline character is detected, echoes the text to the screen,
+	 * and returns its integer value (until the first non-digit character in the
+	 * entered text is detected). Also handles user backspaces. 
+	 */
+	function int readInt(String prompt) {
+		var String input;
+		var int result;
+
+		/* 
+		 * This should be redone so that it maintains its own accumulator as it reads in each digit, rather than reading
+		 * in the entire string and relying on String.intValue. This is about as cold a path as it gets though, since it blocks for input... 
+		 */
+		let input = Keyboard.readLine(prompt);
+		let result = input.intValue();
+
+		do input.dispose();  // free buffer
+		return result;
+	}
+}

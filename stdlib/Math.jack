@@ -1,0 +1,326 @@
+/**
+ * A module containing commonly used mathematical functions.
+ * (If you're scared of unrolled loops, look away now!)
+ */
+class Math {
+	/** We don't need actually need any initialization, but the default Sys class calls this anyways. */
+	function void init() {
+		return;
+	}
+
+	/** Returns the absolute value of x. */
+	function int abs(int x) {
+		/* Abs, min and max all essentially work the same way. A regular branch is fastest. */
+		if (x < 0) {
+			return -x;
+		}
+
+		return x;
+	}
+
+	/** Returns the smaller of the two inputs x and y. */
+	function int min(int x, int y) {
+		if (x < y) {
+			return x;
+		}
+
+		return y;
+	}
+
+	/** Returns the larger of the two inputs x and y. */
+	function int max(int x, int y) {
+		if (x > y) {
+			return x;
+		}
+
+		return y;
+	}
+
+	/** Returns the product of x and y. (The compiler defers to this when emitting x * y.) */
+	function int multiply(int x, int y) {
+		var int i, sum;
+
+		let sum = 0;
+		let i = 1;
+
+		/*
+		 * This is the same algorithm as presented in class, except that it calculates the next power of two itself in i.
+		 * The conditional on this loop takes advantage of the fact that once we are finished, i will actually underflow to (-32768 + -32768) = 0.
+		 */
+		while (~(i = 0)) {
+			if (y & i) {
+				let sum = sum + x;
+			}
+
+			let x = x + x;
+			let i = i + i;
+		}
+
+		return sum;
+	}
+
+	/** Returns the integer division (floor(x / y)) of x and y. (The compiler defers to this when emitting x / y.) */
+	function int divide(int x, int y) {
+		var int quotient, y1, y2, y3, y4,
+						  y5, y6, y7, y8,
+						  y9, y10, y11, y12,
+						  y13, y14;
+
+		var boolean sign;
+
+		/* Compute sign of the final quotient. If both x and y are negative, the sign will get negated twice and be 0 (positive) again. */
+		if (x < 0) {
+			let sign = ~sign;
+			let x = -x;  // abs
+		}
+
+		if (y < 0) {
+			let sign = ~sign;
+			let y = -y;  // abs
+		}
+
+		/*
+		 * A long division method similar to the one shown in the book.
+		 * I've eliminated the recursion here by unrolling the call stack, which is really ugly
+		 * but better than slow function calls.
+		 *
+		 * The basic structure is: shift over by one and store in a variable, and if it's still less than or equal to x,
+		 * repeat at the next level. Then afterwards, check again if it's still less than equal to x 
+		 * and if so, subtract from x and update the quotient.
+		 * (This, ironically, could be made much easier to read if Jack had gotos.)
+		 */
+		let y1 = y + y;  // y << 1  == y * 2
+
+		if ((y1 > 0) & ~(y1 > x)) {
+			let y2 = y1 + y1;  // y << 2  == y * 4
+
+			if ((y2 > 0) & ~(y2 > x)) {
+				let y3 = y2 + y2;  // y << 3  == y * 8
+
+				if ((y3 > 0) & ~(y3 > x)) {
+					let y4 = y3 + y3;  // y << 4  == y * 16
+
+					if ((y4 > 0) & ~(y4 > x)) {
+						let y5 = y4 + y4;  // y << 5  == y * 32
+
+						if ((y5 > 0) & ~(y5 > x)) {
+							let y6 = y5 + y5;  // y << 6  == y * 64
+
+							if ((y6 > 0) & ~(y6 > x)) {
+								let y7 = y6 + y6;  // y << 7 == y * 128
+
+								if ((y7 > 0) & ~(y7 > x)) {
+									let y8 = y7 + y7;  // y << 8 == y * 256
+
+									if ((y8 > 0) & ~(y8 > x)) {
+										let y9 = y8 + y8;  // y << 9 == y * 512
+
+										if ((y9 > 0) & ~(y9 > x)) {
+											let y10 = y9 + y9;  // y << 10 == y * 1024
+
+											if ((y10 > 0) & ~(y10 > x)) {
+												let y11 = y10 + y10;  // y << 11 == y * 2048
+
+												if ((y11 > 0) & ~(y11 > x)) {
+													let y12 = y11 + y11;  // y << 12 == y * 4096
+
+													if ((y12 > 0) & ~(y12 > x)) {
+														let y13 = y12 + y12;  // y << 13 == y * 8192
+
+														if ((y13 > 0) & ~(y13 > x)) {
+															let y14 = y13 + y13;  // y << 14 == y * 16384
+
+															if (((y14 > 0) & ~(y14 > x)) & ~(y14 > x)) {
+																let x = x - y14;
+																let quotient = quotient + 16384;
+															}
+
+															if (~(y13 > x)) {
+																let x = x - y13;
+																let quotient = quotient + 8192;
+															}
+														}
+
+														if (~(y12 > x)) {
+															let x = x - y12;
+															let quotient = quotient + 4096;
+														}
+													}
+
+													if (~(y11 > x)) {
+														let x = x - y11;
+														let quotient = quotient + 2048;
+													}
+												}
+
+												if (~(y10 > x)) {
+													let x = x - y10;
+													let quotient = quotient + 1024;
+												}
+											}
+
+											if (~(y9 > x)) {
+												let x = x - y9;
+												let quotient = quotient + 512;
+											}
+										}
+
+										if (~(y8 > x)) {
+											let x = x - y8;
+											let quotient = quotient + 256;
+										}
+									}
+
+									if (~(y7 > x)) {
+										let x = x - y7;
+										let quotient = quotient + 128;
+									}
+								}
+
+								if (~(y6 > x)) {
+									let x = x - y6;
+									let quotient = quotient + 64;
+								}
+							}
+
+							if (~(y5 > x)) {
+								let x = x - y5;
+								let quotient = quotient + 32;
+							}
+						}
+
+						if (~(y4 > x)) {
+							let x = x - y4;
+							let quotient = quotient + 16;
+						}
+					}
+
+					if (~(y3 > x)) {
+						let x = x - y3;
+						let quotient = quotient + 8;
+					}
+				}
+
+				if (~(y2 > x)) {
+					let x = x - y2;
+					let quotient = quotient + 4;
+				}
+			}
+
+			if (~(y1 > x)) {
+				let x = x - y1;
+				let quotient = quotient + 2;
+			}
+		}
+
+		if (~(y > x)) {
+			let x = x - y;
+			let quotient = quotient + 1;
+		}
+
+		if (sign) {
+			return -quotient;
+		}
+
+		return quotient;
+	}
+
+	/** Returns the integer square root of x (floor(sqrt(x)). */
+	function int sqrt(int x) {
+		var int prev, next, delta, dividend;
+
+		/* 
+		 * Newton-Raphson method. next = (prev^2 + n) / (d/dprev (prev^2 + n)) = (prev^2 + n) / (2*prev) = 1/2 * (prev + n / prev).
+		 * This takes more calculations per iteration than the binary search shown in class,
+		 * but takes fewer iterations to converge (only 2-3 for small numbers.)
+		 */
+		let next = x;
+		let delta = 2;
+
+		while (delta > 1) {
+			let prev = next;
+			let dividend = prev + (x / prev);
+			let next = 0;
+
+			/* next = dividend / 2 */
+			if (dividend & ~32767) {
+				let dividend = dividend - ~32767;
+				let next = next + 16384;
+			}
+
+			if (dividend & 16384) {
+				let dividend = dividend - 16384;
+				let next = next + 8192;
+			}
+
+			if (dividend & 8192) {
+				let dividend = dividend - 8192;
+				let next = next + 4096;
+			}
+
+			if (dividend & 4096) {
+				let dividend = dividend - 4096;
+				let next = next + 2048;
+			}
+
+			if (dividend & 2048) {
+				let dividend = dividend - 2048;
+				let next = next + 1024;
+			}
+
+			if (dividend & 1024) {
+				let dividend = dividend - 1024;
+				let next = next + 512;
+			}
+
+			if (dividend & 512) {
+				let dividend = dividend - 512;
+				let next = next + 256;
+			}
+
+			if (dividend & 256) {
+				let dividend = dividend - 256;
+				let next = next + 128;
+			}
+
+			if (dividend & 128) {
+				let dividend = dividend - 128;
+				let next = next + 64;
+			}
+
+			if (dividend & 64) {
+				let dividend = dividend - 64;
+				let next = next + 32;
+			}
+
+			if (dividend & 32) {
+				let dividend = dividend - 32;
+				let next = next + 16;
+			}
+
+			if (dividend & 16) {
+				let dividend = dividend - 16;
+				let next = next + 8;
+			}
+
+			if (dividend & 8) {
+				let dividend = dividend - 8;
+				let next = next + 4;
+			}
+
+			if (dividend & 4) {
+				let dividend = dividend - 4;
+				let next = next + 2;
+			}
+
+			if (dividend & 2) {
+				let dividend = dividend - 2;
+				let next = next + 1;
+			}
+
+			let delta = prev - next;
+		}
+
+		return next;
+	}
+}
